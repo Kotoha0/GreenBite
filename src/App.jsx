@@ -1,110 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
-import { Heart, User, LogOut } from 'lucide-react';
-import { Toaster } from './components/ui/sonner';
-import Home from './components/Home';
-import { CreateRecipe, Post, Like, Login, UserProfile } from '.';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Button } from './components/ui/button';
+import { useEffect, useState } from 'react';
+import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { useAuth } from './contexts/AuthContext'; // Correct path for AuthContext
+import { db } from './firebase'; // Correct path for firebase
 import { Card, CardContent } from './components/ui/card';
-
-// Firebase imports
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from './firebase'; // make sure your Firebase config is exported from ./firebase
+import { Button } from './components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
+import {
+  Heart,
+  LogOut,
+  User,
+} from 'lucide-react';
+import Home from './components/Home'; // Correct path for Home
+import { CreateRecipe } from './components/CreateRecipe';
+import { Post } from './components/Post';
+import { Like } from './components/Like';
+import { UserProfile } from './components/UserProfile';
+import { Login } from './components/Login';
 
 function AppContent() {
-  const [myRecipes, setMyRecipes] = useState([]);
   const [activeTab, setActiveTab] = useState('home');
   const [editingRecipe, setEditingRecipe] = useState(null);
-  const [likedItems, setLikedItems] = useState(() => {
-    const stored = localStorage.getItem('likedItems');
-    return stored ? new Set(JSON.parse(stored)) : new Set();
-  });
+  const [recipes, setRecipes] = useState([]);
+  
   const { currentUser, logout } = useAuth();
 
-  // Load localStorage recipes first
+  // Fetch all recipes from Firestore
   useEffect(() => {
-    const storedRecipes = localStorage.getItem('recipes');
-    if (storedRecipes) {
-      setMyRecipes(JSON.parse(storedRecipes));
-    }
+    const recipesRef = collection(db, 'recipes');
+    const unsubscribe = onSnapshot(recipesRef, (snapshot) => {
+      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log("Fetched recipes from Firestore:", fetched);
+      setRecipes(fetched);
+    });
+    return () => unsubscribe();
   }, []);
-
-  // Fetch Firebase recipes and merge with localStorage
-  useEffect(() => {
-    const fetchFirebaseRecipes = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'recipes'));
-        const firebaseRecipes = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        setMyRecipes(prev => {
-          const ids = new Set(prev.map(r => r.id));
-          const newRecipes = firebaseRecipes.filter(r => !ids.has(r.id));
-          return [...newRecipes, ...prev];
-        });
-      } catch (err) {
-        console.error('Failed to fetch Firebase recipes:', err);
-      }
-    };
-
-    fetchFirebaseRecipes();
-  }, []);
-
-  const saveRecipes = (recipes) => {
-    localStorage.setItem('recipes', JSON.stringify(recipes));
-    setMyRecipes(recipes);
-  };
-
-  const saveLikedItems = (items) => {
-    localStorage.setItem('likedItems', JSON.stringify([...items]));
-    setLikedItems(items);
-  };
-
-  const handleAddRecipe = (recipe) => {
-    const newRecipe = {
-      ...recipe,
-      userId: currentUser?.id,
-      username: currentUser?.username,
-    };
-    saveRecipes([newRecipe, ...myRecipes]);
-  };
-
-  const handleUpdateRecipe = (updatedRecipe) => {
-    saveRecipes(myRecipes.map(r => r.id === updatedRecipe.id ? updatedRecipe : r));
-  };
-
-  const handlePublish = (id) => {
-    saveRecipes(myRecipes.map(r =>
-      r.id === id ? { ...r, published: true } : r
-    ));
-  };
-
-  const handleUnpublish = (id) => {
-    saveRecipes(myRecipes.map(r =>
-      r.id === id ? { ...r, published: false } : r
-    ));
-  };
 
   const handleEditFromPost = (recipe) => {
     setEditingRecipe(recipe);
     setActiveTab('recipes');
-  };
-
-  const toggleLike = (id) => {
-    const newSet = new Set(likedItems);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    saveLikedItems(newSet);
-  };
-
-  const handleLoginSuccess = () => {
-    setActiveTab('home');
   };
 
   const handleLogout = () => {
@@ -112,49 +45,62 @@ function AppContent() {
     setActiveTab('home');
   };
 
-  // Filter recipes for current user
-  const userRecipes = currentUser
-    ? myRecipes.filter(r => r.userId === currentUser.id)
+  // Filter recipes by current user
+  const userRecipes = currentUser 
+    ? recipes.filter(r => r.authorId === currentUser.uid)
     : [];
-  const publishedUserRecipes = userRecipes.filter(r => r.published);
+  
+  // Recipes liked by the current user
+  const likedRecipes = recipes.filter(
+    r => r.published && r.likes?.includes(currentUser.uid)
+  );
 
-  // All published recipes
-  const allPublishedRecipes = myRecipes.filter(r => r.published);
+  const handleLoginSuccess = () => setActiveTab('home');
 
-  // Recipes liked by current user
-  const likedRecipes = allPublishedRecipes.filter(r => likedItems.has(r.id));
+  const handlePublish = async (recipeId) => {
+    try {
+      const recipeRef = doc(db, "recipes", recipeId);
+      await updateDoc(recipeRef, { published: true });
+      console.log("Recipe published:", recipeId);
+    } catch (err) {
+      console.error("Error publishing recipe:", err);
+    }
+  };
+
+  const handleUnpublish = async (recipeId) => {
+    try {
+      const recipeRef = doc(db, "recipes", recipeId);
+      await updateDoc(recipeRef, { published: false });
+      console.log("Recipe unpublished:", recipeId);
+    } catch (err) {
+      console.error("Error unpublishing recipe:", err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
       <div className="container mx-auto px-4 py-16">
+        {/* Header */}
         <header className="text-center mb-20">
           <div className="flex items-center justify-center gap-4 mb-8">
             <Heart className="w-8 h-8 text-emerald-600" />
             <h1 className="text-emerald-800">Recipe Hub</h1>
             <Heart className="w-8 h-8 text-emerald-600" />
           </div>
-          <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed text-lg">
-            Discover, share, and enjoy delicious recipes from our community
-          </p>
-
           {currentUser && (
             <div className="mt-8 flex items-center justify-center gap-4">
               <div className="flex items-center gap-2 bg-white px-6 py-3 rounded-full shadow-sm">
                 <User className="w-5 h-5 text-emerald-600" />
                 <span className="text-gray-700">Welcome, {currentUser.username}</span>
               </div>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="rounded-full"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
+              <Button onClick={handleLogout} variant="outline" className="rounded-full">
+                <LogOut className="w-4 h-4 mr-2" /> Logout
               </Button>
             </div>
           )}
         </header>
 
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex justify-center mb-16">
             <TabsList className="grid w-full max-w-3xl grid-cols-5 h-12">
@@ -166,123 +112,83 @@ function AppContent() {
             </TabsList>
           </div>
 
+          {/* Home Tab */}
           <TabsContent value="home">
-            <Home
+            <Home 
               category="home"
-              userRecipes={allPublishedRecipes}
-              likedItems={likedItems}
-              onToggleLike={toggleLike}
+              userRecipes={recipes} // Pass all recipes for debugging
               currentUser={currentUser}
             />
           </TabsContent>
 
+          {/* Recipes Tab */}
           <TabsContent value="recipes">
             {currentUser ? (
               <CreateRecipe
-                onAddRecipe={handleAddRecipe}
-                onUpdateRecipe={handleUpdateRecipe}
                 editingRecipe={editingRecipe}
                 onCancelEdit={() => setEditingRecipe(null)}
-                myRecipes={userRecipes}
+                userRecipes={userRecipes}
               />
             ) : (
-              <div className="max-w-2xl mx-auto text-center py-12">
-                <Card>
-                  <CardContent className="py-12">
-                    <User className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                    <p className="text-gray-600 text-lg leading-relaxed mb-6">
-                      Please log in to create recipes
-                    </p>
-                    <Button
-                      onClick={() => setActiveTab('login')}
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      Go to Login
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card className="max-w-2xl mx-auto text-center py-12">
+                <CardContent className="py-12">
+                  <User className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 text-lg mb-6">Please log in to create recipes</p>
+                  <Button onClick={() => setActiveTab('login')} className="bg-emerald-600 hover:bg-emerald-700">Go to Login</Button>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
+          {/* Post Tab */}
           <TabsContent value="post">
             {currentUser ? (
-              <Post
+              <Post 
                 recipes={userRecipes}
+                onEdit={handleEditFromPost}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}
-                onEdit={handleEditFromPost}
               />
             ) : (
-              <div className="max-w-2xl mx-auto text-center py-12">
-                <Card>
-                  <CardContent className="py-12">
-                    <User className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                    <p className="text-gray-600 text-lg leading-relaxed mb-6">
-                      Please log in to manage your posts
-                    </p>
-                    <Button
-                      onClick={() => setActiveTab('login')}
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      Go to Login
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card className="max-w-2xl mx-auto text-center py-12">
+                <CardContent className="py-12">
+                  <User className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 text-lg mb-6">Please log in to manage your posts</p>
+                  <Button onClick={() => setActiveTab('login')} className="bg-emerald-600 hover:bg-emerald-700">Go to Login</Button>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
+          {/* Like Tab */}
           <TabsContent value="like">
             {currentUser ? (
-              <Like
-                category="like"
-                userRecipes={allPublishedRecipes}
-                likedItems={likedItems}
-                onToggleLike={toggleLike}
-                currentUser={currentUser}
-              />
+              <Like userRecipes={likedRecipes} currentUser={currentUser} />
             ) : (
-              <div className="max-w-2xl mx-auto text-center py-12">
-                <Card>
-                  <CardContent className="py-12">
-                    <User className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                    <p className="text-gray-600 text-lg leading-relaxed mb-6">
-                      Please log in to view your liked recipes
-                    </p>
-                    <Button
-                      onClick={() => setActiveTab('login')}
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      Go to Login
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card className="max-w-2xl mx-auto text-center py-12">
+                <CardContent className="py-12">
+                  <User className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 text-lg mb-6">Please log in to view your liked recipes</p>
+                  <Button onClick={() => setActiveTab('login')} className="bg-emerald-600 hover:bg-emerald-700">Go to Login</Button>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
+          {/* Login Tab */}
           <TabsContent value="login">
             {currentUser ? (
-              <UserProfile
-                userRecipes={userRecipes}
-                likedRecipes={likedRecipes}
-              />
+              <UserProfile userRecipes={userRecipes} likedRecipes={likedRecipes} />
             ) : (
               <Login onLoginSuccess={handleLoginSuccess} />
             )}
           </TabsContent>
         </Tabs>
       </div>
-      <Toaster />
     </div>
   );
 }
 
 export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+  return <AppContent />;
 }
