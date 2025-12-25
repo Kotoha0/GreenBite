@@ -10,8 +10,8 @@ import { toast } from 'sonner';
 export function Post({ recipes, onPublish, onUnpublish, onEdit }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
-  const unpublishedRecipes = recipes.filter(r => !r.published);
-  const publishedRecipes = recipes.filter(r => r.published);
+  const unpublishedRecipes = recipes.filter((r) => !r.published);
+  const publishedRecipes = recipes.filter((r) => r.published);
 
   const handlePublish = (e, id) => {
     e.stopPropagation();

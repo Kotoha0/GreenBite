@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import './index.css';
+import Home from './components/Home';
 
 const container = document.getElementById("root");
 const root = createRoot(container);
@@ -12,7 +13,7 @@ root.render(
   </React.StrictMode>
 );
 
-export { Home } from './components/Home.jsx';
+export { default as Home } from './components/Home';
 export { CreateRecipe } from './components/CreateRecipe.jsx';
 export { Post } from './components/Post.jsx';
 export { Like } from './components/Like.jsx';

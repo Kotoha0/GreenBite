@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from './firebase';
@@ -16,29 +16,19 @@ export function useMyRecipes() {
       return;
     }
 
-    const recipesRef = collection(db, 'recipes');
-    const q = query(recipesRef, where('uid', '==', user.uid));
+    const q = query(
+      collection(db, 'recipes'),
+      where('uid', '==', user.uid) // FIXED: Changed from 'userId' to 'uid'
+    );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const unsub = onSnapshot(q, (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setRecipes(data);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsub();
   }, [user]);
 
-  const addRecipe = async (recipe) => {
-    if (!user) throw new Error('User not authenticated');
-    const recipesRef = collection(db, 'recipes');
-    await addDoc(recipesRef, { ...recipe, uid: user.uid });
-  };
-
-  const updateRecipe = async (recipe) => {
-    if (!user) throw new Error('User not authenticated');
-    const recipeRef = doc(db, 'recipes', recipe.id);
-    await updateDoc(recipeRef, { ...recipe });
-  };
-
-  return { recipes, loading, addRecipe, updateRecipe };
+  return { recipes, loading };
 }

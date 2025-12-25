@@ -140,7 +140,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
       tags: allTags,
       ingredients,
       steps,
-      published: false,
+      published: false, 
       authorId: auth.currentUser.uid,
       leftoverIngredients: ingredients
         .filter((ing) => ing.isLeftover)

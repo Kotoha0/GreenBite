@@ -1,26 +1,57 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { Heart, User, LogOut } from 'lucide-react';
 import { Toaster } from './components/ui/sonner';
-import { Home, CreateRecipe, Post, Like, Login, UserProfile } from '.';
+import Home from './components/Home';
+import { CreateRecipe, Post, Like, Login, UserProfile } from '.';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
-import React from "react";
+
+// Firebase imports
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './firebase'; // make sure your Firebase config is exported from ./firebase
 
 function AppContent() {
-  const [myRecipes, setMyRecipes] = useState(() => {
-    const stored = localStorage.getItem('recipes');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [myRecipes, setMyRecipes] = useState([]);
   const [activeTab, setActiveTab] = useState('home');
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [likedItems, setLikedItems] = useState(() => {
     const stored = localStorage.getItem('likedItems');
     return stored ? new Set(JSON.parse(stored)) : new Set();
   });
-
   const { currentUser, logout } = useAuth();
+
+  // Load localStorage recipes first
+  useEffect(() => {
+    const storedRecipes = localStorage.getItem('recipes');
+    if (storedRecipes) {
+      setMyRecipes(JSON.parse(storedRecipes));
+    }
+  }, []);
+
+  // Fetch Firebase recipes and merge with localStorage
+  useEffect(() => {
+    const fetchFirebaseRecipes = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'recipes'));
+        const firebaseRecipes = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setMyRecipes(prev => {
+          const ids = new Set(prev.map(r => r.id));
+          const newRecipes = firebaseRecipes.filter(r => !ids.has(r.id));
+          return [...newRecipes, ...prev];
+        });
+      } catch (err) {
+        console.error('Failed to fetch Firebase recipes:', err);
+      }
+    };
+
+    fetchFirebaseRecipes();
+  }, []);
 
   const saveRecipes = (recipes) => {
     localStorage.setItem('recipes', JSON.stringify(recipes));
@@ -46,13 +77,13 @@ function AppContent() {
   };
 
   const handlePublish = (id) => {
-    saveRecipes(myRecipes.map(r => 
+    saveRecipes(myRecipes.map(r =>
       r.id === id ? { ...r, published: true } : r
     ));
   };
 
   const handleUnpublish = (id) => {
-    saveRecipes(myRecipes.map(r => 
+    saveRecipes(myRecipes.map(r =>
       r.id === id ? { ...r, published: false } : r
     ));
   };
@@ -81,17 +112,17 @@ function AppContent() {
     setActiveTab('home');
   };
 
-  const userRecipes = currentUser 
+  // Filter recipes for current user
+  const userRecipes = currentUser
     ? myRecipes.filter(r => r.userId === currentUser.id)
     : [];
   const publishedUserRecipes = userRecipes.filter(r => r.published);
 
+  // All published recipes
   const allPublishedRecipes = myRecipes.filter(r => r.published);
 
+  // Recipes liked by current user
   const likedRecipes = allPublishedRecipes.filter(r => likedItems.has(r.id));
-
-  useEffect(() => {
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
@@ -105,7 +136,7 @@ function AppContent() {
           <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed text-lg">
             Discover, share, and enjoy delicious recipes from our community
           </p>
-          
+
           {currentUser && (
             <div className="mt-8 flex items-center justify-center gap-4">
               <div className="flex items-center gap-2 bg-white px-6 py-3 rounded-full shadow-sm">
@@ -127,36 +158,27 @@ function AppContent() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex justify-center mb-16">
             <TabsList className="grid w-full max-w-3xl grid-cols-5 h-12">
-              <TabsTrigger value="home">
-                Home
-              </TabsTrigger>
-              <TabsTrigger value="recipes">
-                Recipes
-              </TabsTrigger>
-              <TabsTrigger value="post">
-                Post
-              </TabsTrigger>
-              <TabsTrigger value="like">
-                Like
-              </TabsTrigger>
-              <TabsTrigger value="login">
-                Login
-              </TabsTrigger>
+              <TabsTrigger value="home">Home</TabsTrigger>
+              <TabsTrigger value="recipes">Recipes</TabsTrigger>
+              <TabsTrigger value="post">Post</TabsTrigger>
+              <TabsTrigger value="like">Like</TabsTrigger>
+              <TabsTrigger value="login">Login</TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="home">
-            <Home 
-              category="home" 
+            <Home
+              category="home"
               userRecipes={allPublishedRecipes}
               likedItems={likedItems}
               onToggleLike={toggleLike}
               currentUser={currentUser}
             />
           </TabsContent>
+
           <TabsContent value="recipes">
             {currentUser ? (
-              <CreateRecipe 
+              <CreateRecipe
                 onAddRecipe={handleAddRecipe}
                 onUpdateRecipe={handleUpdateRecipe}
                 editingRecipe={editingRecipe}
@@ -171,7 +193,7 @@ function AppContent() {
                     <p className="text-gray-600 text-lg leading-relaxed mb-6">
                       Please log in to create recipes
                     </p>
-                    <Button 
+                    <Button
                       onClick={() => setActiveTab('login')}
                       className="bg-emerald-600 hover:bg-emerald-700"
                     >
@@ -182,9 +204,10 @@ function AppContent() {
               </div>
             )}
           </TabsContent>
+
           <TabsContent value="post">
             {currentUser ? (
-              <Post 
+              <Post
                 recipes={userRecipes}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}
@@ -198,7 +221,7 @@ function AppContent() {
                     <p className="text-gray-600 text-lg leading-relaxed mb-6">
                       Please log in to manage your posts
                     </p>
-                    <Button 
+                    <Button
                       onClick={() => setActiveTab('login')}
                       className="bg-emerald-600 hover:bg-emerald-700"
                     >
@@ -209,9 +232,10 @@ function AppContent() {
               </div>
             )}
           </TabsContent>
+
           <TabsContent value="like">
             {currentUser ? (
-              <Like 
+              <Like
                 category="like"
                 userRecipes={allPublishedRecipes}
                 likedItems={likedItems}
@@ -226,7 +250,7 @@ function AppContent() {
                     <p className="text-gray-600 text-lg leading-relaxed mb-6">
                       Please log in to view your liked recipes
                     </p>
-                    <Button 
+                    <Button
                       onClick={() => setActiveTab('login')}
                       className="bg-emerald-600 hover:bg-emerald-700"
                     >
@@ -237,9 +261,10 @@ function AppContent() {
               </div>
             )}
           </TabsContent>
+
           <TabsContent value="login">
             {currentUser ? (
-              <UserProfile 
+              <UserProfile
                 userRecipes={userRecipes}
                 likedRecipes={likedRecipes}
               />

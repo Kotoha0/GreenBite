@@ -7,6 +7,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, serverTimestamp } from "../firebase";
+import { v4 as uuidv4 } from 'uuid';
 
 const AuthContext = createContext();
 
@@ -76,3 +77,6 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
+const id = uuidv4();
+console.log(id);
