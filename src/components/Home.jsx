@@ -33,8 +33,10 @@ export default function Home({ category, userRecipes, currentUser }) {
 
   // ONLY show published recipes on Home / Like
 	const publishedRecipes = userRecipes.filter(
-  		(recipe) => recipe.published === true
+  (recipe) => recipe.published === true
 	);
+
+  console.log("Published recipes:", publishedRecipes);
 
   const filteredData =
     selectedTagFilters.length > 0

@@ -145,8 +145,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
       leftoverIngredients: ingredients
         .filter((ing) => ing.isLeftover)
         .map((ing) => ing.item.toLowerCase()),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(), // Always update this
     };
 
     try {
@@ -154,10 +153,13 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
       recipeData.image = imageUrl; // Add the uploaded image URL to the recipe data
 
       if (editingRecipe) {
+        // Only update updatedAt for existing recipes
         await updateDoc(doc(db, 'recipes', editingRecipe.id), recipeData);
         toast.success('Recipe updated successfully ✨');
         onCancelEdit();
       } else {
+        // Set createdAt for new recipes
+        recipeData.createdAt = serverTimestamp();
         await addDoc(collection(db, 'recipes'), recipeData);
         toast.success('Recipe saved successfully ✨');
       }

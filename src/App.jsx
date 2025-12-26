@@ -31,7 +31,7 @@ function AppContent() {
     const recipesRef = collection(db, 'recipes');
     const unsubscribe = onSnapshot(recipesRef, (snapshot) => {
       const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      console.log("Fetched recipes from Firestore:", fetched);
+      console.log("Fetched recipes from Firestore:", recipes);
       setRecipes(fetched);
     });
     return () => unsubscribe();
@@ -51,11 +51,11 @@ function AppContent() {
   const userRecipes = currentUser 
     ? recipes.filter(r => r.authorId === currentUser.uid)
     : [];
-  
+
   // Recipes liked by the current user
-  const likedRecipes = recipes.filter(
-    r => r.published && r.likes?.includes(currentUser.uid)
-  );
+  const likedRecipes = currentUser
+    ? recipes.filter(r => r.published && r.likes?.includes(currentUser.uid))
+    : [];
 
   const handleLoginSuccess = () => setActiveTab('home');
 

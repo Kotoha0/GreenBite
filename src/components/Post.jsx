@@ -103,14 +103,20 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
       <CardContent className="p-4">
         <h3 className="mb-2 text-emerald-900">{recipe.title || "Untitled Recipe"}</h3>
         <p className="text-gray-600 text-sm mb-3 line-clamp-2">{recipe.description || "No description provided."}</p>
+        
         <div className="flex flex-wrap gap-2 mb-3">
           {(recipe.tags || []).slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
-              {tag}
-            </Badge>
+            <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
           ))}
           {(recipe.tags?.length > 3) && <Badge variant="secondary" className="text-xs">+{recipe.tags.length - 3}</Badge>}
         </div>
+
+        {/* Timestamps */}
+        <div className="text-xs text-gray-400 mb-2">
+          <p>Created: {formatTimestamp(recipe.createdAt)}</p>
+          <p>Updated: {formatTimestamp(recipe.updatedAt)}</p>
+        </div>
+
         <div className="flex gap-2">
           {isDraft ? (
             <Button
@@ -156,6 +162,12 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
       </CardContent>
     </Card>
   );
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleString(); // e.g., "12/26/2025, 2:35:10 PM"
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-12">

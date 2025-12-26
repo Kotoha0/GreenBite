@@ -122,7 +122,7 @@ export function RecipeDetail({
           <div className="flex items-center gap-3 mb-8 pb-6 border-b">
             <Button variant={isLiked ? "default" : "outline"} className="flex items-center gap-2" onClick={() => onToggleLike(recipe.id)}>
               <Heart className={`w-5 h-5 ${isLiked ? 'fill-white' : ''}`} />
-              <span>{recipe.likes + (isLiked ? 1 : 0)} Likes</span>
+              <span>{recipe.likes?.length || 0} Likes</span>
             </Button>
             <Button variant="outline" className="flex items-center gap-2" onClick={() => setShowComments(true)}>
               <MessageCircle className="w-5 h-5" />
