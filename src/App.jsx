@@ -16,6 +16,7 @@ import { Post } from './components/Post';
 import { Like } from './components/Like';
 import { UserProfile } from './components/UserProfile';
 import { Login } from './components/Login';
+import { useMyRecipes } from './useMyRecipes';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('home');
@@ -23,6 +24,7 @@ function AppContent() {
   const [recipes, setRecipes] = useState([]);
   
   const { currentUser, logout } = useAuth();
+  const { recipes: myRecipes, deleteRecipe } = useMyRecipes();
 
   // Fetch all recipes from Firestore
   useEffect(() => {
@@ -75,6 +77,11 @@ function AppContent() {
     } catch (err) {
       console.error("Error unpublishing recipe:", err);
     }
+  };
+
+  const handleEdit = (recipe) => {
+    console.log('Editing recipe:', recipe);
+    // Add your edit logic here
   };
 
   return (
@@ -143,11 +150,12 @@ function AppContent() {
           {/* Post Tab */}
           <TabsContent value="post">
             {currentUser ? (
-              <Post 
-                recipes={userRecipes}
-                onEdit={handleEditFromPost}
-                onPublish={handlePublish}
-                onUnpublish={handleUnpublish}
+              <Post
+                recipes={myRecipes}          // Pass the recipes
+                onEdit={handleEditFromPost}  // Pass the edit handler
+                onPublish={handlePublish}    // Pass the publish handler
+                onUnpublish={handleUnpublish} // Pass the unpublish handler
+                onDelete={deleteRecipe}      // Pass the delete handler
               />
             ) : (
               <Card className="max-w-2xl mx-auto text-center py-12">

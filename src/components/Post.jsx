@@ -4,11 +4,17 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { ImageWithFallback } from './ImageWithFallback';
 import { RecipeDetail } from './RecipeDetail';
-import { Eye, EyeOff, Pencil } from 'lucide-react';
+import { Eye, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { db } from '../firebase'; // Adjust the import based on your project structure
+import { doc, deleteDoc } from 'firebase/firestore';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 
-export function Post({ recipes, onPublish, onUnpublish, onEdit }) {
+
+export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [recipeToDelete, setRecipeToDelete] = useState(null);
 
   useEffect(() => {
     console.log("Post component received recipes:", recipes);
@@ -35,6 +41,26 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit }) {
     e.stopPropagation();
     onEdit(recipe);
   };
+
+  const handleDelete = async (e, recipeId) => {
+    e.stopPropagation();
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this recipe? This action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteDoc(doc(db, 'recipes', recipeId));
+      toast.success('Recipe deleted successfully 🗑️');
+      onDelete(recipeId); // Call the passed delete handler
+    } catch (error) {
+      console.error('Delete failed:', error);
+      toast.error('Failed to delete recipe.');
+    }
+  };
+
 
   // Show recipe detail if selected
   if (selectedRecipe) {
@@ -87,18 +113,44 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit }) {
         </div>
         <div className="flex gap-2">
           {isDraft ? (
-            <Button className="flex-1" size="sm" onClick={(e) => handlePublish(e, recipe.id)}>
+            <Button
+              className="flex-1"
+              size="sm"
+              onClick={(e) => handlePublish(e, recipe.id)}
+            >
               <Eye className="w-4 h-4 mr-1" />
               Publish
             </Button>
           ) : (
-            <Button variant="outline" className="flex-1" size="sm" onClick={(e) => handleUnpublish(e, recipe.id)}>
+            <Button
+              variant="outline"
+              className="flex-1"
+              size="sm"
+              onClick={(e) => handleUnpublish(e, recipe.id)}
+            >
               <EyeOff className="w-4 h-4 mr-1" />
               Unpublish
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={(e) => handleEditClick(e, recipe)}>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => handleEditClick(e, recipe)}
+          >
             <Pencil className="w-4 h-4" />
+          </Button>
+
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(recipe.id); // Call the delete handler directly
+              toast.success("Recipe deleted 🗑️");
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       </CardContent>
@@ -140,6 +192,31 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit }) {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Recipe?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete your recipe.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                onDelete(recipeToDelete); // Call the delete handler
+                toast.success("Recipe deleted 🗑️");
+                setOpen(false); // Close the dialog
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

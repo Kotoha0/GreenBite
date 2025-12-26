@@ -82,6 +82,7 @@ export default function Home({ category, userRecipes, currentUser }) {
     return (
       <RecipeDetail
         recipe={selectedItem}
+        currentUser={currentUser} // <--- add this
         isLiked={effectiveLikedItems.has(selectedItem.id)}
         onToggleLike={() => toggleLikeFirebase(selectedItem.id)}
         onBack={() => setSelectedItem(null)}

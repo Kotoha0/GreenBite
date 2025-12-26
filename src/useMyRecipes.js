@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from './firebase';
+import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { db, auth } from './firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from './firebase';
 
 export function useMyRecipes() {
   const [user] = useAuthState(auth);
@@ -16,19 +15,31 @@ export function useMyRecipes() {
       return;
     }
 
+    // Match the field you actually use in Firestore
     const q = query(
       collection(db, 'recipes'),
-      where('uid', '==', user.uid) // FIXED: Changed from 'userId' to 'uid'
+      where('authorId', '==', user.uid) // Ensure this matches your Firestore field
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setRecipes(data);
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log("useMyRecipes fetched:", data);
+      setRecipes(data); // No need to filter again
       setLoading(false);
     });
 
     return () => unsub();
   }, [user]);
 
-  return { recipes, loading };
+  const deleteRecipe = async (recipeId) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'recipes', recipeId));
+      setRecipes(prev => prev.filter(r => r.id !== recipeId));
+    } catch (err) {
+      console.error('Delete failed', err);
+    }
+  };
+
+  return { recipes, deleteRecipe, loading };
 }

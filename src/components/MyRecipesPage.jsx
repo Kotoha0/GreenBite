@@ -4,7 +4,7 @@ import { useMyRecipes } from './useMyRecipes';
 import { Spinner } from './ui/spinner'; // optional, for loading indicator
 
 export function MyRecipesPage() {
-  const { recipes, loading, addRecipe, updateRecipe } = useMyRecipes();
+  const { recipes, loading, addRecipe, updateRecipe, deleteRecipe } = useMyRecipes();
   const [editingRecipe, setEditingRecipe] = useState(null);
 
   if (loading) {
