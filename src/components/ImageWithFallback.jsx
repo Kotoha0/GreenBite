@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState} from 'react';
 
 export function ImageWithFallback({ src, alt, className, fallbackSrc = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400' }) {
   const [error, setError] = useState(false);

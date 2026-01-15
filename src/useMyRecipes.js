@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { db, auth } from './firebase.js';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
 export function useMyRecipes() {
@@ -15,16 +15,14 @@ export function useMyRecipes() {
       return;
     }
 
-    // Match the field you actually use in Firestore
     const q = query(
       collection(db, 'recipes'),
-      where('authorId', '==', user.uid) // Ensure this matches your Firestore field
+      where('authorId', '==', user.uid)
     );
 
     const unsub = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      console.log("useMyRecipes fetched:", data);
-      setRecipes(data); // No need to filter again
+      setRecipes(data);
       setLoading(false);
     });
 

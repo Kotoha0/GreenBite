@@ -4,7 +4,7 @@ import { Badge } from './ui/badge';
 import { User, Heart, ChefHat } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export function UserProfile({ userRecipes, likedRecipes, onViewRecipe }) {
+export function UserProfile({ userRecipes, likedRecipes, viewRecipeDetails }) {
   const { currentUser } = useAuth();
 
   if (!currentUser) {

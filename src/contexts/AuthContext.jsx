@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { auth, db, serverTimestamp } from "../firebase"; // Ensure correct paths
+import { auth, db, serverTimestamp } from "../firebase"; 
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
@@ -9,7 +9,6 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Listen to Firebase auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -18,7 +17,6 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // Fetch user profile from Firestore
       const userDoc = await getDoc(doc(db, "users", user.uid));
       setCurrentUser({
         uid: user.uid,

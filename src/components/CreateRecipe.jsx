@@ -15,14 +15,11 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth } from '../firebase';
 import { serverTimestamp } from "firebase/firestore";
 
-export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCancelEdit, myRecipes }) {
-  // Step 1: Leftover ingredients selection
+export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editRecipe, onCancelEdit, myRecipes }) {
   const [step, setStep] = useState(1);
   const [leftoverIngredients, setLeftoverIngredients] = useState([]);
-  const [customLeftover, setCustomLeftover] = useState('');
-
-  // Step 2: Recipe editor
-  const [title, setTitle] = useState('');
+  const [newLeftoverInput, setNewLeftoverInput] = useState(''); 
+  const [recipeTitle, setRecipeTitle] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [description, setDescription] = useState('');
@@ -40,20 +37,20 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
     'beans', 'lentils', 'chickpeas', 'corn', 'peas'
   ];
 
-  const toggleLeftover = (ingredient) => {
+  const selectLeftover = (ingredient) => { 
     setLeftoverIngredients((prev) =>
       prev.includes(ingredient) ? prev.filter((i) => i !== ingredient) : [...prev, ingredient]
     );
   };
 
-  const addCustomLeftover = () => {
+  const addNewLeftover = () => {
     if (customLeftover.trim() && !leftoverIngredients.includes(customLeftover.trim().toLowerCase())) {
       setLeftoverIngredients([...leftoverIngredients, customLeftover.trim().toLowerCase()]);
       setCustomLeftover('');
     }
   };
 
-  const proceedToRecipeEditor = () => {
+  const goToRecipeEditor = () => { 
     if (leftoverIngredients.length === 0) {
       toast.error('Please select at least one leftover ingredient');
       return;
@@ -67,14 +64,14 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
     setStep(2);
   };
 
-  const toggleTag = (tag) => {
+  const selectTag = (tag) => {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
 
-  const addIngredient = () => setIngredients([...ingredients, { item: '', amount: '', isLeftover: false }]);
-  const removeIngredient = (index) => setIngredients(ingredients.filter((_, i) => i !== index));
+  const addNewIngredient = () => setIngredients([...ingredients, { item: '', amount: '', isLeftover: false }]); 
+  const deleteIngredient = (index) => setIngredients(ingredients.filter((_, i) => i !== index));
   const updateIngredient = (index, field, value) => {
     const newIngredients = [...ingredients];
     newIngredients[index][field] = value;
@@ -82,7 +79,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
   };
 
   const addStep = () => setSteps([...steps, '']);
-  const removeStep = (index) => setSteps(steps.filter((_, i) => i !== index));
+  const deleteStep = (index) => setSteps(steps.filter((_, i) => i !== index)); 
   const updateStep = (index, value) => {
     const newSteps = [...steps];
     newSteps[index] = value;
@@ -98,14 +95,14 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
   };
 
   const uploadImage = async () => {
-    if (!imageFile) return imagePreview; // No new file, keep existing URL
+    if (!imageFile) return imagePreview;
     const storage = getStorage();
     const storageRef = ref(storage, `recipes/${Date.now()}_${imageFile.name}`);
     await uploadBytes(storageRef, imageFile);
     return await getDownloadURL(storageRef);
   };
 
-  const handleSubmit = async (e) => {
+  const saveRecipe = async (e) => { 
     e.preventDefault();
 
     if (!auth.currentUser) {
@@ -113,7 +110,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
       return;
     }
 
-    if (!title || !description || (!imageFile && !imagePreview)) {
+    if (!recipeTitle || !description || (!imageFile && !imagePreview)) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -134,7 +131,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
     const allTags = [...new Set([...ingredientTags, ...selectedTags])];
 
     const recipeData = {
-      title,
+      title: recipeTitle, 
       image: imagePreview,
       description,
       tags: allTags,
@@ -145,37 +142,35 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
       leftoverIngredients: ingredients
         .filter((ing) => ing.isLeftover)
         .map((ing) => ing.item.toLowerCase()),
-      updatedAt: serverTimestamp(), // Always update this
+      updatedAt: serverTimestamp(),
     };
 
     try {
       const imageUrl = await uploadImage();
-      recipeData.image = imageUrl; // Add the uploaded image URL to the recipe data
+      recipeData.image = imageUrl;
 
-      if (editingRecipe) {
-        // Only update updatedAt for existing recipes
-        await updateDoc(doc(db, 'recipes', editingRecipe.id), recipeData);
-        toast.success('Recipe updated successfully ✨');
+      if (editRecipe) {
+        await updateDoc(doc(db, 'recipes', editRecipe.id), recipeData);
+        toast.success('Recipe updated successfully ');
         onCancelEdit();
       } else {
-        // Set createdAt for new recipes
         recipeData.createdAt = serverTimestamp();
         await addDoc(collection(db, 'recipes'), recipeData);
-        toast.success('Recipe saved successfully ✨');
+        toast.success('Recipe saved successfully ');
       }
 
-      resetForm();
+      clearForm(); 
     } catch (error) {
       console.error(error);
       toast.error('Failed to save recipe. Try again.');
     }
   };
 
-  const resetForm = () => {
+  const clearForm = () => {
     setStep(1);
     setLeftoverIngredients([]);
-    setCustomLeftover('');
-    setTitle('');
+    setNewLeftoverInput('');
+    setRecipeTitle(''); 
     setImageFile(null);
     setImagePreview('');
     setDescription('');
@@ -184,42 +179,41 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
     setSteps(['']);
   };
 
-  const handleCancelEdit = () => {
+  const cancelEditing = () => {
     onCancelEdit();
-    resetForm();
+    clearForm();
   };
 
-  const backToLeftoverSelection = () => setStep(1);
+  const returnToLeftoverStep = () => setStep(1); 
 
   useEffect(() => {
-    if (editingRecipe) {
+    if (editRecipe) {
       setStep(2);
-      setLeftoverIngredients(editingRecipe.leftoverIngredients || []);
-      setTitle(editingRecipe.title);
-      setImagePreview(editingRecipe.image);
-      setDescription(editingRecipe.description);
-      setSelectedTags(editingRecipe.tags || []);
-      setIngredients(editingRecipe.ingredients || [{ item: '', amount: '', isLeftover: false }]);
-      setSteps(editingRecipe.steps);
+      setLeftoverIngredients(editRecipe.leftoverIngredients || []);
+      setRecipeTitle(editRecipe.title); 
+      setImagePreview(editRecipe.image);
+      setDescription(editRecipe.description);
+      setSelectedTags(editRecipe.tags || []);
+      setIngredients(editRecipe.ingredients || [{ item: '', amount: '', isLeftover: false }]);
+      setSteps(editRecipe.steps);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [editingRecipe]);
+  }, [editRecipe]);
 
   if (selectedRecipe) {
     return (
       <RecipeDetail
         recipe={{ ...selectedRecipe, category: 'my-recipes' }}
-        isLiked={false}
-        onToggleLike={() => {}}
-        onBack={() => setSelectedRecipe(null)}
+        recipeLiked={false} 
+        handleRecipeLike={() => {}} 
+        returnToPrevious={() => setSelectedRecipe(null)} 
         hideInteractions={true}
-        onEdit={(recipe) => setSelectedRecipe(null)}
-        backButtonText="Back"
+        handleEditRecipe={(recipe) => setSelectedRecipe(null)}
+        backButtonLabel="Back" 
       />
     );
   }
 
-  // --- Step 1: Leftover Selection ---
   if (step === 1) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -240,7 +234,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
                     key={ingredient}
                     variant={leftoverIngredients.includes(ingredient) ? 'default' : 'outline'}
                     className="cursor-pointer py-2 px-4 text-sm"
-                    onClick={() => toggleLeftover(ingredient)}
+                    onClick={() => selectLeftover(ingredient)} 
                   >
                     {leftoverIngredients.includes(ingredient) && <Check className="w-3 h-3 mr-1" />}
                     {ingredient}
@@ -251,16 +245,16 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
 
             {/* Custom Leftover Input */}
             <div className="space-y-3">
-              <Label htmlFor="customLeftover">Add Custom Ingredient</Label>
+              <Label htmlFor="newLeftoverInput">Add Custom Ingredient</Label> {/* Updated id */}
               <div className="flex gap-2">
                 <Input
-                  id="customLeftover"
-                  value={customLeftover}
-                  onChange={(e) => setCustomLeftover(e.target.value)}
+                  id="newLeftoverInput" 
+                  value={newLeftoverInput} 
+                  onChange={(e) => setNewLeftoverInput(e.target.value)} 
                   placeholder="Enter ingredient name..."
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomLeftover(); } }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNewLeftover(); } }} 
                 />
-                <Button type="button" onClick={addCustomLeftover} variant="outline">
+                <Button type="button" onClick={addNewLeftover} variant="outline"> {/* Updated from addCustomLeftover */}
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
@@ -274,14 +268,14 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
                   {leftoverIngredients.map((ingredient) => (
                     <Badge key={ingredient} className="bg-emerald-600 py-2 px-4 text-sm">
                       {ingredient}
-                      <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => toggleLeftover(ingredient)} />
+                      <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => selectLeftover(ingredient)} /> {/* Updated from toggleLeftover */}
                     </Badge>
                   ))}
                 </div>
               </div>
             )}
 
-            <Button onClick={proceedToRecipeEditor} className="w-full" size="lg" disabled={leftoverIngredients.length === 0}>
+            <Button onClick={goToRecipeEditor} className="w-full" size="lg" disabled={leftoverIngredients.length === 0}> {/* Updated from proceedToRecipeEditor */}
               Continue to Recipe Editor
             </Button>
           </CardContent>
@@ -290,20 +284,19 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
     );
   }
 
-  // --- Step 2: Recipe Editor ---
   return (
     <div className="max-w-4xl mx-auto">
       {/* Recipe Editor Card */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3 mb-4">
-            <Button variant="ghost" size="sm" onClick={backToLeftoverSelection}>
+            <Button variant="ghost" size="sm" onClick={returnToLeftoverStep}> {/* Updated from backToLeftoverSelection */}
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
           </div>
-          <CardTitle className="text-emerald-800 mb-4">{editingRecipe ? 'Edit Recipe' : 'Create New Recipe'}</CardTitle>
-          <p className="text-gray-600 leading-relaxed">{editingRecipe ? 'Update your recipe details' : 'Share your delicious recipe with the community'}</p>
+          <CardTitle className="text-emerald-800 mb-4">{editRecipe ? 'Edit Recipe' : 'Create New Recipe'}</CardTitle>
+          <p className="text-gray-600 leading-relaxed">{editRecipe ? 'Update your recipe details' : 'Share your delicious recipe with the community'}</p>
           
           <div className="mt-4 p-4 bg-emerald-50 rounded-lg">
             <p className="text-sm text-emerald-800 mb-2">🥕 Using these leftovers:</p>
@@ -315,14 +308,14 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={saveRecipe} className="space-y-8"> {/* Updated from handleSubmit */}
             {/* Title */}
             <div className="space-y-3">
-              <Label htmlFor="title">Recipe Title *</Label>
+              <Label htmlFor="recipeTitle">Recipe Title *</Label> {/* Updated id */}
               <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                id="recipeTitle" 
+                value={recipeTitle} 
+                onChange={(e) => setRecipeTitle(e.target.value)} 
                 placeholder="e.g., Morning Smoothie Bowl"
                 required
               />
@@ -337,7 +330,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
-                  required={!editingRecipe && !imagePreview}
+                  required={!editRecipe && !imagePreview}
                 />
                 <Button type="button" variant="outline" size="icon">
                   <Upload className="w-4 h-4" />
@@ -373,7 +366,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
                   <Label>Ingredients *</Label>
                   <p className="text-sm text-gray-500 mt-1">Add amounts for leftovers and additional ingredients. Tags auto-generated.</p>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={addIngredient}>
+                <Button type="button" variant="outline" size="sm" onClick={addNewIngredient}> {/* Updated from addIngredient */}
                   <Plus className="w-4 h-4 mr-2" /> Add More
                 </Button>
               </div>
@@ -383,7 +376,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
                     <Input placeholder="Ingredient name" value={ingredient.item} onChange={(e) => updateIngredient(index, 'item', e.target.value)} className="flex-1" disabled={ingredient.isLeftover} />
                     <Input placeholder="Amount" value={ingredient.amount} onChange={(e) => updateIngredient(index, 'amount', e.target.value)} className="w-32" />
                     {ingredient.isLeftover && <Badge className="bg-emerald-600 whitespace-nowrap">Leftover</Badge>}
-                    {!ingredient.isLeftover && <Button type="button" variant="ghost" size="icon" onClick={() => removeIngredient(index)}><Trash2 className="w-4 h-4 text-red-500" /></Button>}
+                    {!ingredient.isLeftover && <Button type="button" variant="ghost" size="icon" onClick={() => deleteIngredient(index)}><Trash2 className="w-4 h-4 text-red-500" /></Button>} {/* Updated from removeIngredient */}
                   </div>
                 ))}
               </div>
@@ -402,7 +395,7 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
                   <div key={index} className="flex gap-3">
                     <div className="flex-shrink-0 w-8 h-8 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-sm mt-2">{index + 1}</div>
                     <Textarea placeholder={`Step ${index + 1}`} value={step} onChange={(e) => updateStep(index, e.target.value)} className="flex-1" rows={2} />
-                    {steps.length > 1 && <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(index)} className="mt-2"><Trash2 className="w-4 h-4 text-red-500" /></Button>}
+                    {steps.length > 1 && <Button type="button" variant="ghost" size="icon" onClick={() => deleteStep(index)} className="mt-2"><Trash2 className="w-4 h-4 text-red-500" /></Button>} {/* Updated from removeStep */}
                   </div>
                 ))}
               </div>
@@ -410,10 +403,10 @@ export function CreateRecipe({ onAddRecipe, onUpdateRecipe, editingRecipe, onCan
 
             {/* Submit */}
             <div className="flex gap-4 pt-4">
-              {editingRecipe && <Button type="button" variant="outline" className="flex-1" size="lg" onClick={handleCancelEdit}>Cancel</Button>}
+              {editRecipe && <Button type="button" variant="outline" className="flex-1" size="lg" onClick={cancelEditing}>Cancel</Button>} {/* Updated from handleCancelEdit */}
               <Button type="submit" className="flex-1" size="lg" disabled={saving}>
-  {saving ? 'Saving...' : editingRecipe ? 'Update Recipe' : 'Save as Draft'}
-</Button>
+                {saving ? 'Saving...' : editRecipe ? 'Update Recipe' : 'Save as Draft'}
+              </Button>
             </div>
           </form>
         </CardContent>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { useAuth } from './contexts/AuthContext'; // Correct path for AuthContext
-import { db } from './firebase'; // Correct path for firebase
+import { useAuth } from './contexts/AuthContext'; 
+import { db } from './firebase'; 
 import { Card, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
@@ -10,7 +10,7 @@ import {
   LogOut,
   User,
 } from 'lucide-react';
-import Home from './components/Home'; // Correct path for Home
+import Home from './components/Home'; 
 import { CreateRecipe } from './components/CreateRecipe';
 import { Post } from './components/Post';
 import { Like } from './components/Like';
@@ -20,13 +20,11 @@ import { useMyRecipes } from './useMyRecipes';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('home');
-  const [editingRecipe, setEditingRecipe] = useState(null);
+  const [editRecipe, setEditRecipe] = useState(null); 
   const [recipes, setRecipes] = useState([]);
-  
   const { currentUser, logout } = useAuth();
   const { recipes: myRecipes, deleteRecipe } = useMyRecipes();
 
-  // Fetch all recipes from Firestore
   useEffect(() => {
     const recipesRef = collection(db, 'recipes');
     const unsubscribe = onSnapshot(recipesRef, (snapshot) => {
@@ -37,8 +35,8 @@ function AppContent() {
     return () => unsubscribe();
   }, []);
 
-  const handleEditFromPost = (recipe) => {
-    setEditingRecipe(recipe);
+  const handleEditPost = (recipe) => {
+    setEditRecipe(recipe);
     setActiveTab('recipes');
   };
 
@@ -47,17 +45,15 @@ function AppContent() {
     setActiveTab('home');
   };
 
-  // Filter recipes by current user
   const userRecipes = currentUser 
     ? recipes.filter(r => r.authorId === currentUser.uid)
     : [];
 
-  // Recipes liked by the current user
   const likedRecipes = currentUser
     ? recipes.filter(r => r.published && r.likes?.includes(currentUser.uid))
     : [];
 
-  const handleLoginSuccess = () => setActiveTab('home');
+  const handleLoginSuc = () => setActiveTab('home');
 
   const handlePublish = async (recipeId) => {
     try {
@@ -81,7 +77,6 @@ function AppContent() {
 
   const handleEdit = (recipe) => {
     console.log('Editing recipe:', recipe);
-    // Add your edit logic here
   };
 
   return (
@@ -90,9 +85,9 @@ function AppContent() {
         {/* Header */}
         <header className="text-center mb-20">
           <div className="flex items-center justify-center gap-4 mb-8">
-            <Heart className="w-8 h-8 text-emerald-600" />
-            <h1 className="text-emerald-800">Recipe Hub</h1>
-            <Heart className="w-8 h-8 text-emerald-600" />
+            <h1 className="text-6xl font-bold text-emerald-800 tracking-wide" style={{fontFamily: 'Georgia, serif', letterSpacing: '0.05em'}}>
+              GreenBite
+            </h1>
           </div>
           {currentUser && (
             <div className="mt-8 flex items-center justify-center gap-4">
@@ -123,7 +118,7 @@ function AppContent() {
           <TabsContent value="home">
             <Home 
               category="home"
-              userRecipes={recipes} // Pass all recipes for debugging
+              userRecipes={recipes} 
               currentUser={currentUser}
             />
           </TabsContent>
@@ -132,8 +127,8 @@ function AppContent() {
           <TabsContent value="recipes">
             {currentUser ? (
               <CreateRecipe
-                editingRecipe={editingRecipe}
-                onCancelEdit={() => setEditingRecipe(null)}
+                editRecipe={editRecipe} 
+                onCancelEdit={() => setEditRecipe(null)}
                 userRecipes={userRecipes}
               />
             ) : (
@@ -151,11 +146,11 @@ function AppContent() {
           <TabsContent value="post">
             {currentUser ? (
               <Post
-                recipes={myRecipes}          // Pass the recipes
-                onEdit={handleEditFromPost}  // Pass the edit handler
-                onPublish={handlePublish}    // Pass the publish handler
-                onUnpublish={handleUnpublish} // Pass the unpublish handler
-                onDelete={deleteRecipe}      // Pass the delete handler
+                recipes={myRecipes}          
+                onEdit={handleEditPost}
+                onPublish={handlePublish}   
+                onUnpublish={handleUnpublish}  
+                onDelete={deleteRecipe}    
               />
             ) : (
               <Card className="max-w-2xl mx-auto text-center py-12">
@@ -188,7 +183,7 @@ function AppContent() {
             {currentUser ? (
               <UserProfile userRecipes={userRecipes} likedRecipes={likedRecipes} />
             ) : (
-              <Login onLoginSuccess={handleLoginSuccess} />
+              <Login onLoginSuccess={handleLoginSuc} />
             )}
           </TabsContent>
         </Tabs>

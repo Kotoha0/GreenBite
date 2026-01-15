@@ -3,57 +3,51 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
-import { useAuth } from "../contexts/AuthContext"; // Ensure this is correct
+import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 
 export function Login({ onLoginSuccess }) {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+  const { login, signup } = useAuth(); 
 
-  const { login, signup } = useAuth(); // Ensure these functions are correctly provided by AuthContext
-
-  const handleSubmit = async (e) => {
+  const submitForm = async (e) => { 
     e.preventDefault();
-    setIsLoading(true);
+    setFormLoading(true); 
 
     try {
-      // Sanitize inputs
-      const cleanEmail = email.trim();
-      const cleanPassword = password.trim();
-      const cleanUsername = username.trim();
+      const validEmail = email.trim();
+      const validPassword = password.trim();
+      const validUsername = username.trim();
 
-      // Ensure both email and password are provided
-      if (!cleanEmail || !cleanPassword) {
+      if (!validEmail || !validPassword) {
         throw new Error("Email and password are required.");
       }
 
-      if (isSignUp) {
-        // Handle signup
+      if (showSignUp) { 
         const user = await signup(email, password, username);
 
-        // Save additional user data to Firestore
         await setDoc(doc(db, "users", user.uid), {
-          username: cleanUsername,
-          email: cleanEmail,
+          username: validUsername, 
+          email: validEmail,
         });
 
-        toast.success("🎉 Account created! Please log in.");
-        setIsSignUp(false); // Switch to login mode
+        toast.success("Account created! Please log in.");
+        setShowSignUp(false); 
       } else {
-        // Handle login
+        
         await login(email, password);
-        toast.success("✅ Login successful!");
+        toast.success("Login successful!");
         if (onLoginSuccess) {
-          onLoginSuccess(); // Redirect or perform other actions
+          onLoginSuccess(); 
         }
       }
 
-      // Reset form
       setEmail("");
       setPassword("");
       setUsername("");
@@ -61,7 +55,7 @@ export function Login({ onLoginSuccess }) {
       console.error("Error during signup or login:", error.message);
       toast.error(error.message || "An error occurred");
     } finally {
-      setIsLoading(false);
+      setFormLoading(false);
     }
   };
 
@@ -70,17 +64,17 @@ export function Login({ onLoginSuccess }) {
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-emerald-800 mb-3">
-            {isSignUp ? "Create Account" : "Welcome Back"}
+            {showSignUp ? "Create Account" : "Welcome Back"} {/* Updated from isSignUp */}
           </CardTitle>
           <p className="text-gray-600 leading-relaxed">
-            {isSignUp
+            {showSignUp 
               ? "Join our recipe community today"
               : "Sign in to share and discover amazing recipes"}
           </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {isSignUp && (
+          <form onSubmit={submitForm} className="space-y-6"> {/* Updated from handleSubmit */}
+            {showSignUp && ( /* Updated from isSignUp */
               <div className="space-y-3">
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -121,20 +115,20 @@ export function Login({ onLoginSuccess }) {
             <Button
               type="submit"
               className="w-full bg-emerald-600 hover:bg-emerald-700 mt-8"
-              disabled={isLoading}
+              disabled={formLoading}
             >
-              {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+              {formLoading ? "Loading..." : showSignUp ? "Sign Up" : "Sign In"} {/* Updated references */}
             </Button>
 
             <div className="text-center pt-8 border-t mt-8">
               <p className="text-gray-600 leading-relaxed">
-                {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+                {showSignUp ? "Already have an account?" : "Don't have an account?"}{" "} {/* Updated from isSignUp */}
                 <button
                   type="button"
-                  onClick={() => setIsSignUp(!isSignUp)}
+                  onClick={() => setShowSignUp(!showSignUp)}
                   className="text-emerald-600 hover:text-emerald-700"
                 >
-                  {isSignUp ? "Sign In" : "Sign Up"}
+                  {showSignUp ? "Sign In" : "Sign Up"} {/* Updated from isSignUp */}
                 </button>
               </p>
             </div>

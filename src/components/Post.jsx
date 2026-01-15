@@ -6,15 +6,12 @@ import { ImageWithFallback } from './ImageWithFallback';
 import { RecipeDetail } from './RecipeDetail';
 import { Eye, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { db } from '../firebase'; // Adjust the import based on your project structure
-import { doc, deleteDoc } from 'firebase/firestore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
-
 
 export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [open, setOpen] = useState(false);
-  const [recipeToDelete, setRecipeToDelete] = useState(null);
+  const [deletingRecipe, setDeletingRecipe] = useState(null); 
 
   useEffect(() => {
     console.log("Post component received recipes:", recipes);
@@ -25,13 +22,13 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
   const unpublishedRecipes = recipes.filter((r) => !r.published);
   const publishedRecipes = recipes.filter((r) => r.published);
 
-  const handlePublish = (e, id) => {
+  const publishRecipe = (e, id) => { 
     e.stopPropagation();
     onPublish(id);
-    toast.success('Recipe published! 🎉 Now visible on Home feed.');
+    toast.success('Recipe published! Now visible on Home feed.');
   };
 
-  const handleUnpublish = (e, id) => {
+  const unpublishRecipe = (e, id) => {
     e.stopPropagation();
     onUnpublish(id);
     toast.success('Recipe unpublished. Moved to drafts.');
@@ -42,49 +39,28 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
     onEdit(recipe);
   };
 
-  const handleDelete = async (e, recipeId) => {
-    e.stopPropagation();
-
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this recipe? This action cannot be undone."
-    );
-
-    if (!confirmed) return;
-
-    try {
-      await deleteDoc(doc(db, 'recipes', recipeId));
-      toast.success('Recipe deleted successfully 🗑️');
-      onDelete(recipeId); // Call the passed delete handler
-    } catch (error) {
-      console.error('Delete failed:', error);
-      toast.error('Failed to delete recipe.');
-    }
-  };
-
-
-  // Show recipe detail if selected
   if (selectedRecipe) {
     return (
       <RecipeDetail
         recipe={{ ...selectedRecipe, category: 'my-recipes' }}
-        isLiked={false}
-        onToggleLike={() => {}}
-        onBack={() => setSelectedRecipe(null)}
+        recipeLiked={false} 
+        handleRecipeLike={() => {}} 
+        returnToPrevious={() => setSelectedRecipe(null)} 
         hideInteractions={true}
-        onEdit={(recipe) => {
+        handleEditRecipe={(recipe) => {
           setSelectedRecipe(null);
           onEdit(recipe);
         }}
-        backButtonText="Back"
+        backButtonLabel="Back" 
       />
     );
   }
 
-  const renderRecipeCard = (recipe, isDraft = false) => (
+  const createRecipeCard = (recipe, showDraft = false) => ( 
     <Card
       key={recipe.id}
       className={`overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-300 ${
-        isDraft ? 'border-2 border-dashed border-gray-300' : 'border-2 border-emerald-200'
+        showDraft ? 'border-2 border-dashed border-gray-300' : 'border-2 border-emerald-200' 
       }`}
       onClick={() => setSelectedRecipe(recipe)}
     >
@@ -95,8 +71,8 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 opacity-75"
         />
         <div className="absolute top-3 left-3">
-          <Badge variant="secondary" className={`${isDraft ? 'bg-gray-600 text-white' : 'bg-emerald-600'}`}>
-            {isDraft ? 'Draft' : 'Published'}
+          <Badge variant="secondary" className={`${showDraft ? 'bg-gray-600 text-white' : 'bg-emerald-600'}`}> {/* Updated from isDraft */}
+            {showDraft ? 'Draft' : 'Published'} {/* Updated from isDraft */}
           </Badge>
         </div>
       </div>
@@ -113,16 +89,16 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
 
         {/* Timestamps */}
         <div className="text-xs text-gray-400 mb-2">
-          <p>Created: {formatTimestamp(recipe.createdAt)}</p>
-          <p>Updated: {formatTimestamp(recipe.updatedAt)}</p>
+          <p>Created: {displayTimestamp(recipe.createdAt)}</p> {/* Updated from formatTimestamp */}
+          <p>Updated: {displayTimestamp(recipe.updatedAt)}</p> {/* Updated from formatTimestamp */}
         </div>
 
         <div className="flex gap-2">
-          {isDraft ? (
+          {showDraft ? ( /* Updated from isDraft */
             <Button
               className="flex-1"
               size="sm"
-              onClick={(e) => handlePublish(e, recipe.id)}
+              onClick={(e) => publishRecipe(e, recipe.id)} 
             >
               <Eye className="w-4 h-4 mr-1" />
               Publish
@@ -132,7 +108,7 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
               variant="outline"
               className="flex-1"
               size="sm"
-              onClick={(e) => handleUnpublish(e, recipe.id)}
+              onClick={(e) => unpublishRecipe(e, recipe.id)} 
             >
               <EyeOff className="w-4 h-4 mr-1" />
               Unpublish
@@ -152,8 +128,8 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(recipe.id); // Call the delete handler directly
-              toast.success("Recipe deleted 🗑️");
+              setDeletingRecipe(recipe.id); 
+              setOpen(true); 
             }}
           >
             <Trash2 className="w-4 h-4" />
@@ -163,10 +139,10 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
     </Card>
   );
 
-  const formatTimestamp = (timestamp) => {
+  const displayTimestamp = (timestamp) => { 
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleString(); // e.g., "12/26/2025, 2:35:10 PM"
+    return date.toLocaleString(); 
   };
 
   return (
@@ -183,7 +159,7 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {unpublishedRecipes.map(r => renderRecipeCard(r, true))}
+            {unpublishedRecipes.map(r => createRecipeCard(r, true))} {/* Updated from renderRecipeCard */}
           </div>
         )}
       </div>
@@ -200,7 +176,7 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {publishedRecipes.map(r => renderRecipeCard(r, false))}
+            {publishedRecipes.map(r => createRecipeCard(r, false))} {/* Updated from renderRecipeCard */}
           </div>
         )}
       </div>
@@ -219,9 +195,10 @@ export function Post({ recipes, onPublish, onUnpublish, onEdit, onDelete }) {
             <Button
               variant="destructive"
               onClick={() => {
-                onDelete(recipeToDelete); // Call the delete handler
-                toast.success("Recipe deleted 🗑️");
-                setOpen(false); // Close the dialog
+                onDelete(deletingRecipe);
+                toast.success("Recipe deleted");
+                setOpen(false); 
+                setDeletingRecipe(null); 
               }}
             >
               Delete

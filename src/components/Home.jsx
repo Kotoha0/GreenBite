@@ -12,12 +12,10 @@ import { db } from '../firebase';
 
 export default function Home({ category, userRecipes, currentUser }) {
   const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedTagFilters, setSelectedTagFilters] = useState([]);
-  const [customTagInput, setCustomTagInput] = useState('');
+  const [tagFilters, setTagFilters] = useState([]);
+  const [newTagInput, setNewTagInput] = useState(''); 
 
-
-  // Toggle like
-  const toggleLikeFirebase = async (recipeId) => {
+  const updateLikeStatus = async (recipeId) => { 
     if (!currentUser) return;
     const recipeRef = doc(db, 'recipes', recipeId);
     const recipe = userRecipes.find(r => r.id === recipeId);
@@ -31,17 +29,16 @@ export default function Home({ category, userRecipes, currentUser }) {
     userRecipes.filter(r => r.likes?.includes(currentUser?.uid)).map(r => r.id)
   );
 
-  // ONLY show published recipes on Home / Like
-	const publishedRecipes = userRecipes.filter(
-  (recipe) => recipe.published === true
-	);
+  const publishedRecipes = userRecipes.filter(
+    (recipe) => recipe.published === true
+  );
 
   console.log("Published recipes:", publishedRecipes);
 
   const filteredData =
-    selectedTagFilters.length > 0
+    tagFilters.length > 0 
       ? publishedRecipes.filter(item =>
-          selectedTagFilters.every(tag =>
+          tagFilters.every(tag =>
             item.tags?.some(t =>
               t.toLowerCase().includes(tag.toLowerCase())
             )
@@ -49,45 +46,43 @@ export default function Home({ category, userRecipes, currentUser }) {
         )
       : publishedRecipes;
 
-  const handleCardClick = (e, item) => {
+  const selectRecipeCard = (e, item) => { 
     if (e.target.closest('button')) return;
     setSelectedItem(item);
   };
 
   const handleLikeClick = (e, id) => {
     e.stopPropagation();
-    toggleLikeFirebase(id);
+    updateLikeStatus(id); 
   };
 
-  const toggleTagFilter = (tag) => {
-    setSelectedTagFilters(prev =>
+  const updateTagFilter = (tag) => { 
+    setTagFilters(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   };
 
-  const addCustomTag = () => {
-    const trimmed = customTagInput.trim().toLowerCase();
-    if (trimmed && !selectedTagFilters.includes(trimmed)) {
-      setSelectedTagFilters([...selectedTagFilters, trimmed]);
-      setCustomTagInput('');
+  const addNewTag = () => { 
+    const trimmed = newTagInput.trim().toLowerCase(); 
+    if (trimmed && !tagFilters.includes(trimmed)) { 
+      setTagFilters([...tagFilters, trimmed]); 
+      setNewTagInput(''); 
     }
   };
 
-  const removeTagFilter = (tag) => {
-    setSelectedTagFilters(selectedTagFilters.filter(t => t !== tag));
+  const deleteTagFilter = (tag) => {
+    setTagFilters(tagFilters.filter(t => t !== tag));
   };
 
-  const clearAllFilters = () => setSelectedTagFilters([]);
-
-  // Show recipe detail if a card is selected
+  const clearFilters = () => setTagFilters([]);
   if (selectedItem) {
     return (
       <RecipeDetail
         recipe={selectedItem}
-        currentUser={currentUser} // <--- add this
-        isLiked={effectiveLikedItems.has(selectedItem.id)}
-        onToggleLike={() => toggleLikeFirebase(selectedItem.id)}
-        onBack={() => setSelectedItem(null)}
+        currentUser={currentUser}
+        recipeLiked={effectiveLikedItems.has(selectedItem.id)} 
+        handleRecipeLike={() => updateLikeStatus(selectedItem.id)} 
+        returnToPrevious={() => setSelectedItem(null)} 
       />
     );
   }
@@ -98,7 +93,7 @@ export default function Home({ category, userRecipes, currentUser }) {
         <Card className="mb-8 p-6">
           <div className="space-y-4">
             <div>
-              <Label className="text-lg">🥕 What's left in your fridge?</Label>
+              <Label className="text-lg">What's left in your fridge?</Label>
               <p className="text-sm text-gray-500 mt-1">
                 Select ingredients to filter recipes. Multiple tags = recipes with ALL ingredients.
               </p>
@@ -106,12 +101,12 @@ export default function Home({ category, userRecipes, currentUser }) {
             <div className="space-y-2">
               <p className="text-sm text-gray-600">Quick select:</p>
               <div className="flex flex-wrap gap-2">
-                {['rice','pasta','chicken','egg','carrot','spinach','tomato','cheese'].map(tag => (
+                {['rice', 'pasta', 'chicken', 'egg', 'carrot', 'spinach', 'tomato', 'cheese'].map(tag => (
                   <Badge
                     key={tag}
-                    variant={selectedTagFilters.includes(tag) ? 'default' : 'outline'}
+                    variant={tagFilters.includes(tag) ? 'default' : 'outline'} 
                     className="cursor-pointer py-2 px-4"
-                    onClick={() => toggleTagFilter(tag)}
+                    onClick={() => updateTagFilter(tag)} 
                   >
                     {tag}
                   </Badge>
@@ -120,23 +115,23 @@ export default function Home({ category, userRecipes, currentUser }) {
             </div>
             <div className="flex gap-2">
               <Input
-                value={customTagInput}
-                onChange={(e) => setCustomTagInput(e.target.value)}
+                value={newTagInput} 
+                onChange={(e) => setNewTagInput(e.target.value)} 
                 placeholder="Search for unique ingredients..."
-                onKeyDown={(e) => { if(e.key==='Enter'){ e.preventDefault(); addCustomTag(); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNewTag(); } }}
               />
-              <Button type="button" onClick={addCustomTag} variant="outline">
+              <Button type="button" onClick={addNewTag} variant="outline"> {/* Updated from addNewTag */}
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
-            {selectedTagFilters.length > 0 && (
+            {tagFilters.length > 0 && ( 
               <div className="flex flex-wrap gap-2">
-                {selectedTagFilters.map(tag => (
+                {tagFilters.map(tag => ( 
                   <Badge key={tag} className="bg-emerald-600 py-2 px-4">
-                    {tag} <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => removeTagFilter(tag)} />
+                    {tag} <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => deleteTagFilter(tag)} /> {/* Updated from deleteTagFilter */}
                   </Badge>
-                ))}
-                <Button variant="ghost" size="sm" onClick={clearAllFilters}>Clear all</Button>
+                ))}   
+                <Button variant="ghost" size="sm" onClick={clearFilters}>Clear all</Button> {/* Updated from clearAllFilters */}
               </div>
             )}
           </div>
@@ -160,7 +155,7 @@ export default function Home({ category, userRecipes, currentUser }) {
                   ? 'border-2 border-emerald-500'
                   : ''
               }`}
-              onClick={(e) => handleCardClick(e, item)}
+              onClick={(e) => selectRecipeCard(e, item)} 
             >
               <div className="relative aspect-[4/3] overflow-hidden">
                 <ImageWithFallback
@@ -179,16 +174,16 @@ export default function Home({ category, userRecipes, currentUser }) {
                 <h3 className="mb-4">{item.title}</h3>
                 <p className="text-gray-600 mb-6 line-clamp-2 leading-relaxed">{item.description}</p>
                 <div className="flex flex-wrap gap-2 mb-6">
-                  {item.tags?.slice(0,5).map((tag,index)=> <Badge key={index} variant="secondary" className="text-xs">{tag}</Badge>)}
-                  {item.tags?.length > 5 && <Badge variant="secondary" className="text-xs">+{item.tags.length-5}</Badge>}
+                  {item.tags?.slice(0, 5).map((tag, index) => <Badge key={index} variant="secondary" className="text-xs">{tag}</Badge>)}
+                  {item.tags?.length > 5 && <Badge variant="secondary" className="text-xs">+{item.tags.length - 5}</Badge>}
                 </div>
                 <div className="flex items-center gap-6 text-gray-500">
-                  <button className="flex items-center gap-2 hover:text-red-500 transition-colors" onClick={(e)=>handleLikeClick(e,item.id)}>
-                    <Heart className={`w-4 h-4 ${effectiveLikedItems.has(item.id)? 'fill-red-500 text-red-500' : ''}`} />
+                  <button className="flex items-center gap-2 hover:text-red-500 transition-colors" onClick={(e) => handleLikeClick(e, item.id)}>
+                    <Heart className={`w-4 h-4 ${effectiveLikedItems.has(item.id) ? 'fill-red-500 text-red-500' : ''}`} />
                     <span className="text-sm">{item.likes?.length || 0}</span>
                   </button>
                   <div className="flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4"/>
+                    <MessageCircle className="w-4 h-4" />
                     <span className="text-sm">{item.comments?.length || 0}</span>
                   </div>
                 </div>

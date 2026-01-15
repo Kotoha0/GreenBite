@@ -1,229 +1,220 @@
-import { useState, useEffect } from 'react';
-import { ImageWithFallback } from './ImageWithFallback';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Heart, MessageCircle, ArrowLeft, Send, Edit } from 'lucide-react';
-import { Card, CardContent } from './ui/card';
-import { Textarea } from './ui/textarea';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { ScrollArea } from './ui/scroll-area';
-import { doc, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
+import { Input } from './ui/input';
+import { ArrowLeft, Heart, MessageCircle, Edit } from 'lucide-react';
+import { ImageWithFallback } from './ImageWithFallback';
+import { collection, addDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'sonner';
 
 export function RecipeDetail({
   recipe,
   currentUser,
-  isLiked,
-  onToggleLike,
-  onBack,
+  recipeLiked, 
+  handleRecipeLike, 
+  returnToPrevious,
   hideInteractions,
-  onEdit,
-  backButtonText
+  handleEditRecipe, 
+  backButtonLabel 
 }) {
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState(recipe.comments || []);
+  const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
 
-  // Real-time listener for comments
   useEffect(() => {
-    const recipeRef = doc(db, 'recipes', recipe.id);
-    const unsubscribe = onSnapshot(recipeRef, (snapshot) => {
-      const data = snapshot.data();
-      setComments(data.comments || []);
-    });
+    if (recipe?.id) {
+      const q = query(collection(db, 'comments'), where('recipeId', '==', recipe.id));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedComments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setComments(fetchedComments);
+      });
+      return () => unsubscribe();
+    }
+  }, [recipe?.id]);
 
-    return () => unsubscribe();
-  }, [recipe.id]);
-
-  const handleAddComment = async () => {
-    if (!newComment.trim()) return;
-
-    const recipeRef = doc(db, 'recipes', recipe.id);
-
-    const comment = {
-      id: uuidv4(),
-      userId: currentUser.uid,
-      username: currentUser.displayName || 'You',
-      text: newComment.trim(),
-      createdAt: new Date().toISOString(), // Alternatively, use serverTimestamp() for Firestore
-    };
+  const addNewComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !currentUser) return;
 
     try {
-      await updateDoc(recipeRef, {
-        comments: arrayUnion(comment),
+      await addDoc(collection(db, 'comments'), {
+        text: newComment.trim(),
+        authorId: currentUser.uid,
+        authorName: currentUser.username || currentUser.email,
+        recipeId: recipe.id,
+        createdAt: new Date()
       });
-
       setNewComment('');
+      toast.success('Comment added!');
     } catch (error) {
-      console.error('Error adding comment: ', error);
+      console.error('Error adding comment:', error);
+      toast.error('Failed to add comment');
     }
   };
 
-  // Check leftover ingredients
-  const hasLeftovers = recipe.leftoverIngredients?.length > 0;
-  const leftoverCount = hasLeftovers ? recipe.leftoverIngredients.length : 0;
+  const handleLikeClick = (e) => {
+    e.stopPropagation();
+    handleRecipeLike(); 
+  };
+
+  const containsLeftovers = recipe.leftoverIngredients && recipe.leftoverIngredients.length > 0;
+  const leftoverCount = recipe.leftoverIngredients?.length || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 pb-12">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Button */}
-        <Button variant="ghost" className="mb-6 flex items-center gap-2" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4" />
-          {backButtonText || 'Back to home'}
-        </Button>
+    <div className="max-w-4xl mx-auto">
+      <Card className="overflow-hidden">
+        <div className="relative">
+          <div className="relative aspect-[16/9] overflow-hidden">
+            <ImageWithFallback
+              src={recipe.image || recipe.imageUrl}
+              alt={recipe.title}
+              className="w-full h-full object-cover"
+            />
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={returnToPrevious} 
+              className="absolute top-4 left-4 bg-white/80 hover:bg-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              {backButtonLabel || 'Back'} {/* Updated from backButtonText */}
+            </Button>
 
-        {/* Recipe Title */}
-        <h1 className="text-emerald-800 mb-4">{recipe.title}</h1>
-
-        {/* Recipe Image */}
-        <div className="relative aspect-video overflow-hidden rounded-lg mb-6">
-          <ImageWithFallback src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
+            {handleEditRecipe && currentUser && recipe.authorId === currentUser.uid && ( 
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEditRecipe(recipe)}
+                className="absolute top-4 right-4 bg-white/80 hover:bg-white"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Leftover Info */}
-        {hasLeftovers && (
-          <Card className="bg-orange-50 border-orange-200 shadow-sm mb-6">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <span className="text-xl">🥕</span>
-                </div>
-                <div>
-                  <p className="text-sm text-orange-900 mb-2">
-                    <span className="font-semibold">{leftoverCount} leftover ingredient{leftoverCount > 1 ? 's' : ''} used</span>
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {recipe.leftoverIngredients.map((ingredient, idx) => (
-                      <span key={idx} className="text-sm text-orange-800">
-                        {ingredient}{idx < recipe.leftoverIngredients.length - 1 ? ', ' : ''}
-                      </span>
-                    ))}
+        <CardContent className="p-8">
+          <h1 className="text-3xl font-bold text-emerald-800 mb-6">{recipe.title}</h1>
+          
+          <p className="text-gray-600 mb-6 leading-relaxed">{recipe.description}</p>
+
+          {containsLeftovers && (
+            <div className="mb-6 p-4 bg-emerald-50 rounded-lg">
+              <h3 className="text-lg font-semibold text-emerald-800 mb-2">
+                Uses {leftoverCount} leftover ingredient{leftoverCount !== 1 ? 's' : ''}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {recipe.leftoverIngredients.map((ingredient, index) => (
+                  <Badge key={index} className="bg-emerald-600">
+                    {ingredient}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold text-emerald-800 mb-3">Tags</h3>
+            <div className="flex flex-wrap gap-2">
+              {recipe.tags?.map((tag, index) => (
+                <Badge key={index} variant="secondary">{tag}</Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold text-emerald-800 mb-3">Ingredients</h3>
+            <ul className="space-y-2">
+              {recipe.ingredients?.map((ingredient, index) => (
+                <li key={index} className="flex items-center gap-3">
+                  <span className="w-2 h-2 bg-emerald-600 rounded-full"></span>
+                  <span className="font-medium">{ingredient.amount}</span>
+                  <span>{ingredient.item}</span>
+                  {ingredient.isLeftover && (
+                    <Badge className="bg-emerald-600 text-xs">Leftover</Badge>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-emerald-800 mb-3">Instructions</h3>
+            <ol className="space-y-4">
+              {recipe.steps?.map((step, index) => (
+                <li key={index} className="flex gap-4">
+                  <div className="flex-shrink-0 w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center font-semibold">
+                    {index + 1}
+                  </div>
+                  <p className="text-gray-700 leading-relaxed pt-1">{step}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {!hideInteractions && (
+            <div className="border-t pt-6">
+              <div className="flex items-center gap-6 mb-6">
+                <button
+                  onClick={handleLikeClick}
+                  className="flex items-center gap-2 hover:text-red-500 transition-colors"
+                >
+                  <Heart className={`w-5 h-5 ${recipeLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} /> {/* Updated from isLiked */}
+                  <span className="text-sm font-medium">{recipe.likes?.length || 0} likes</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowComments(!showComments)}
+                  className="flex items-center gap-2 text-gray-500 hover:text-emerald-600 transition-colors"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span className="text-sm font-medium">{comments.length} comments</span>
+                </button>
+              </div>
+
+              {showComments && (
+                <div className="space-y-4">
+                  {currentUser && (
+                    <form onSubmit={addNewComment} className="flex gap-3">
+                      <Input
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Add a comment..."
+                        className="flex-1"
+                      />
+                      <Button type="submit" disabled={!newComment.trim()}>
+                        Post
+                      </Button>
+                    </form>
+                  )}
+
+                  <div className="space-y-3">
+                    {comments.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>
+                    ) : (
+                      comments.map((comment) => (
+                        <div key={comment.id} className="bg-gray-50 p-4 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-medium text-sm">{comment.authorName}</span>
+                            <span className="text-xs text-gray-500">
+                              {comment.createdAt?.toDate?.()?.toLocaleString() || 'Just now'}
+                            </span>
+                          </div>
+                          <p className="text-gray-700">{comment.text}</p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Description */}
-        <p className="text-gray-700 mb-6 text-lg">{recipe.description}</p>
-
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {recipe.tags.map((tag, index) => (
-            <Badge key={index} variant="secondary" className="text-sm">{tag}</Badge>
-          ))}
-        </div>
-
-        {/* Likes & Comments */}
-        {!hideInteractions && (
-          <div className="flex items-center gap-3 mb-8 pb-6 border-b">
-            <Button variant={isLiked ? "default" : "outline"} className="flex items-center gap-2" onClick={() => onToggleLike(recipe.id)}>
-              <Heart className={`w-5 h-5 ${isLiked ? 'fill-white' : ''}`} />
-              <span>{recipe.likes?.length || 0} Likes</span>
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2" onClick={() => setShowComments(true)}>
-              <MessageCircle className="w-5 h-5" />
-              <span>{comments.length} Comments</span>
-            </Button>
-          </div>
-        )}
-
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Ingredients */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="mb-4 text-emerald-700">Ingredients</h2>
-              <ul className="space-y-3">
-                {recipe.ingredients.map((ing, idx) => (
-                  <li key={idx} className="flex justify-between items-center py-2 border-b last:border-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-700">{ing.item}</span>
-                      {ing.isLeftover && <Badge className="bg-orange-500 text-xs">leftover</Badge>}
-                    </div>
-                    <span className="text-gray-600">{ing.amount}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Cooking Steps */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="mb-4 text-emerald-700">How to Cook</h2>
-              <ol className="space-y-4">
-                {recipe.steps.map((step, idx) => (
-                  <li key={idx} className="flex gap-3">
-                    <span className="flex-shrink-0 w-7 h-7 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-sm">
-                      {idx + 1}
-                    </span>
-                    <span className="text-gray-700 pt-0.5">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Edit Button */}
-        {onEdit && (
-          <Button variant="outline" className="mt-4" onClick={() => onEdit(recipe)}>
-            <Edit className="w-4 h-4 mr-2" /> Edit Recipe
-          </Button>
-        )}
-
-        {/* Comments Modal */}
-        <Dialog open={showComments} onOpenChange={setShowComments}>
-          <DialogContent className="max-w-2xl max-h-[80vh]">
-            <DialogHeader>
-              <DialogTitle>Comments ({comments.length})</DialogTitle>
-            </DialogHeader>
-            <ScrollArea className="h-[400px] pr-4">
-              <div className="space-y-4">
-                {comments.length > 0 ? (
-                  comments.map((c) => (
-                    <div key={c.id} className="flex items-start gap-3 pb-4 border-b last:border-0">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback>{c.username.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold">{c.username}</p>
-                          <p className="text-sm text-gray-500">{new Date(c.createdAt).toLocaleString()}</p>
-                        </div>
-                        <p className="text-gray-700">{c.text}</p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-gray-500 py-8">No comments yet. Be the first to comment!</p>
-                )}
-              </div>
-            </ScrollArea>
-            <div className="mt-4 pt-4 border-t">
-              <Textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-1 resize-none"
-                rows={2}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleAddComment();
-                  }
-                }}
-              />
-              <Button variant="default" className="mt-2 w-full" onClick={handleAddComment} disabled={!newComment.trim()}>
-                <Send className="w-4 h-4 mr-2" /> Post Comment
-              </Button>
+              )}
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
