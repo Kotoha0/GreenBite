@@ -17,6 +17,7 @@ import { Like } from './components/Like';
 import { UserProfile } from './components/UserProfile';
 import { Login } from './components/Login';
 import { useMyRecipes } from './useMyRecipes';
+import { initialPosts } from './initialPosts';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('home');
@@ -130,7 +131,7 @@ function AppContent() {
           <TabsContent value="home">
             <Home 
               category="home"
-              userRecipes={recipes} 
+              userRecipes={[...initialPosts, ...recipes]} 
               currentUser={currentUser}
             />
           </TabsContent>

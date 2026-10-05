@@ -9,6 +9,7 @@ import { RecipeDetail } from './RecipeDetail';
 import { ImageWithFallback } from './ImageWithFallback';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
+import { INITIAL_POST_PREFIX } from '../initialPosts';
 
 export default function Home({ category, userRecipes, currentUser }) {
   const [selectedItem, setSelectedItem] = useState(null);
@@ -16,7 +17,7 @@ export default function Home({ category, userRecipes, currentUser }) {
   const [newTagInput, setNewTagInput] = useState(''); 
 
   const updateLikeStatus = async (recipeId) => { 
-    if (!currentUser) return;
+    if (!currentUser || recipeId.startsWith(INITIAL_POST_PREFIX)) return;
     const recipeRef = doc(db, 'recipes', recipeId);
     const recipe = userRecipes.find(r => r.id === recipeId);
     const liked = recipe.likes?.includes(currentUser.uid);
