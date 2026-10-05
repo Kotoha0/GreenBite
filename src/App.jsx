@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from './contexts/AuthContext'; 
-import { db } from './firebase'; 
+import { db, firebaseConfigured } from './firebase'; 
 import { Card, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
@@ -26,10 +26,12 @@ function AppContent() {
   const { recipes: myRecipes, deleteRecipe } = useMyRecipes();
 
   useEffect(() => {
+    if (!firebaseConfigured) return;
+
     const recipesRef = collection(db, 'recipes');
     const unsubscribe = onSnapshot(recipesRef, (snapshot) => {
       const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      console.log("Fetched recipes from Firestore:", recipes);
+      console.log("Fetched recipes from Firestore:", fetched);
       setRecipes(fetched);
     });
     return () => unsubscribe();
@@ -101,6 +103,16 @@ function AppContent() {
             </div>
           )}
         </header>
+
+        {!firebaseConfigured && (
+          <div
+            role="status"
+            className="mx-auto mb-8 max-w-3xl rounded-lg border border-amber-300 bg-amber-50 p-4 text-center text-amber-900"
+          >
+            Firebase is not configured. The app is available in browse-only mode;
+            sign-in and saving recipes require Firebase settings in a <code>.env</code> file.
+          </div>
+        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { db, auth } from './firebase.js';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { db, firebaseConfigured } from './firebase.js';
+import { useAuth } from './contexts/AuthContext';
 
 export function useMyRecipes() {
-  const [user] = useAuthState(auth);
+  const { currentUser } = useAuth();
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!firebaseConfigured || !currentUser) {
       setRecipes([]);
       setLoading(false);
       return;
@@ -17,7 +17,7 @@ export function useMyRecipes() {
 
     const q = query(
       collection(db, 'recipes'),
-      where('authorId', '==', user.uid)
+      where('authorId', '==', currentUser.uid)
     );
 
     const unsub = onSnapshot(q, (snapshot) => {
@@ -27,10 +27,10 @@ export function useMyRecipes() {
     });
 
     return () => unsub();
-  }, [user]);
+  }, [currentUser]);
 
   const deleteRecipe = async (recipeId) => {
-    if (!user) return;
+    if (!currentUser || !db) return;
     try {
       await deleteDoc(doc(db, 'recipes', recipeId));
       setRecipes(prev => prev.filter(r => r.id !== recipeId));
